@@ -1,24 +1,29 @@
-#import camera
+import camera
 import settings
 import logging, time
 import slashmap
 
-logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
-
 def main():
-    logger.info("STARTING CLIENT...")
+    logging.basicConfig(level=logging.INFO)
+    logging.info("STARTING CLIENT...")
+
+    # loop
     while True:
-        time.sleep(10) # sleep 10 seconds
+        try:
+            camera.takePicture()
 
-        logger.info("SNAPPING PICTURE...")
-        camera.takePicture()
-        logger.info(f"PICTURE SAVED TO {settings.IMG_PATH}...") 
+            s3_filename = slashmap.getS3Filename()
+            slashmap.uploadToS3(settings.IMG_PATH, s3_filename)
+            logging.info(f"Getting analysis for {s3_filename}")
+            analysis = slashmap.getAnalysis(s3_filename)
+            print("\n")
+            slashmap.validate(analysis)
+            print("\n")
 
-        s3_filename = slashmap.getS3Filename()
-        logger.info(f"Uploading to S3 {s3_filename}...")
-        slashmap.uploadToS3(settings.IMG_PATH, s3_filename)
-
+        except Exception as e:
+            logging.error(f"Error in main loop: {e}")
+        
+        time.sleep(settings.LOOP_TIMEOUT)
 
 
 if __name__ == '__main__':
